@@ -1,21 +1,57 @@
-# YeelightOSC
-Just a tiny app that allows you to connect your Yeelight/Xiaomi bulb to VRChat!
+# VRChatOSCSwitch
+Ever wanted to run multiple OSC apps at once while playing VRChat?<br />
+If so, you might know that VRChat will not communicate with multiple apps on the same UDP ports (9000 and 9001).
 
-https://user-images.githubusercontent.com/11065274/161112218-3b4a58e8-9a4d-49c3-9548-49a9870f4789.mp4
+This is why I created this app, which will act as a "switch" between the OSC apps (VRCFT, YeelightOSC etc.) and the target app (VRChat).
 
-## Available parameters
-The base for the parameters is, of course, `/avatar/parameters/`.
-- `Brightness`: float, ranges from 0.0f (0%) to 1.0f (100%)
-- `Temperature`: float, ranges from 0.0f (1700K) to 1.0f (6500K)
-- `ColorR`: float, ranges from 0.0f (0) to 1.0f (255)
-- `ColorG`: float, ranges from 0.0f (0) to 1.0f (255)
-- `ColorB`: float, ranges from 0.0f (0) to 1.0f (255)
-- `SendUpdate`: int, its possible values for now are
-    - `1`: Update lamp color to selected temperature
-    - `2`: Update lamp color to selected RGB color
-    - _might add more values as flows, TBD_
-- `LightToggle`: bool, toggles the light on and off
+This is how the program works:<br/>
+![diagram](https://i.imgur.com/7Y0KDit.png)
+
+## Example JSON
+```json
+{
+  "InPort": 9000,
+  "OutPort": 9001,
+  "ControlInPort": 8000,
+  "ControlOutPort": 8001,
+  "OSCPrograms": [
+    {
+      "Name": "VRCFT",
+      "ExecutablePath": "F:\\VRChat Cache\\Tools\\VRCFaceTracking.exe",
+      "CommandLine": "--osc=$InPort$:127.0.0.1:$OutPort$",
+      "FwdInPort": 10000,
+      "FwdOutPort": 10001,
+      "SeparateConsole": true,
+      "Addresses": [
+        {
+          "Address": "/avatar/parameters",
+          "Parameters": [
+            "EyesX",
+            "EyesY",
+            "CombinedEyeLid*",
+            "LeftEye*",
+            "RightEye*",
+            "Jaw*",
+            "Mouth*",
+            "Cheek*",
+            "Smile*",
+            "Puff*",
+            "Tongue*"
+          ]
+        },
+        {
+          "Address": "/avatar",
+          "Parameters": [
+            "change"
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+You can make the program generate an example JSON automatically by running it once.
 
 ## Dependencies
-- [YeelightAPI](https://github.com/roddone/YeelightAPI) by roddone
+- [Newtonsoft.Json](https://www.newtonsoft.com/json) by Netwonsoft.
 - [Bespoke.Osc](https://opensoundcontrol.stanford.edu/implementations/Bespoke-OSC.html) by matt from Standford University.
