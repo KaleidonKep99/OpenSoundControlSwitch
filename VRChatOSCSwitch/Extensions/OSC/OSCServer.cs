@@ -1,6 +1,8 @@
 ﻿using Bespoke.Osc;
 using Newtonsoft.Json;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 
 namespace VRChatOSCSwitch
 {
@@ -22,6 +24,10 @@ namespace VRChatOSCSwitch
         [JsonProperty("ControlOutPort")]
         public int? ControlOutPort { get; set; }
 
+        // Don't show your public IP in the log when enabling the remote control
+        [JsonProperty("HidePublicIP")]
+        public bool? HidePublicIP { get; set; }
+
         // This contains all the programs that the switch will forwards the ports to
         [JsonProperty("OSCPrograms")]
         public OSCProgram[] Programs { get; set; }
@@ -35,13 +41,42 @@ namespace VRChatOSCSwitch
         public OSCServer() {}
 
         // Used to create the example JSON
-        public OSCServer(int I, int O, int CI, int CO, OSCProgram[] P)
+        public OSCServer(int I, int O, int CI, int CO, bool HPIP, OSCProgram[] P)
         {
             InPort = I;
             OutPort = O;
             ControlInPort = CI;
             ControlOutPort = CO;
+            HidePublicIP = HPIP;
             Programs = P;
+        }
+
+        private string GetPublicIPAddress()
+        {
+            if (HidePublicIP == null)
+                HidePublicIP = true;
+
+            if ((bool)HidePublicIP)
+                return "<PUBLIC IP HIDDEN>";
+
+            string? PublicIP;
+
+            HttpClient DDNSReq = new HttpClient();
+            using (HttpResponseMessage Response = DDNSReq.GetAsync("http://checkip.dyndns.org").Result)
+            using (StreamReader Stream = new StreamReader(Response.Content.ReadAsStream()))
+            {
+                string AfterThis = "Address: ";
+
+                PublicIP = Stream.ReadToEnd();
+
+                if (PublicIP != null)
+                {
+                    int Begin = PublicIP.IndexOf(AfterThis) + AfterThis.Length, End = PublicIP.LastIndexOf("</body>");
+                    PublicIP = PublicIP.Substring(Begin, End - Begin);
+                }
+            }
+
+            return PublicIP != null ? PublicIP : "<UNAVAILABLE>";
         }
 
         // This function scans every packet received, and if it matches one of the programs,
@@ -77,6 +112,22 @@ namespace VRChatOSCSwitch
             AnalyzeData(sender, Var.Message.SourceEndPoint, Var.Message.Address, Var.Message.Data, Var.GetType());
         }
 
+        // --
+        public void BundleR(object? sender, OscBundleReceivedEventArgs Var)
+        {
+            IPEndPoint Src = Var.Bundle.SourceEndPoint;
+            OSCServerL.PrintMessage(LogSystem.MsgType.Information, "Received remote bundle.", Src.Address, Src.Port);
+            Bundle(sender, Var);
+        }
+
+        // --
+        public void MessageR(object? sender, OscMessageReceivedEventArgs Var)
+        {
+            IPEndPoint Src = Var.Message.SourceEndPoint;
+            OSCServerL.PrintMessage(LogSystem.MsgType.Information, "Received remote message.", Src.Address, Src.Port);
+            Message(sender, Var);
+        }
+
         // This function prepares the server
         public void PrepareServer()
         {
@@ -92,17 +143,50 @@ namespace VRChatOSCSwitch
             // If the control ports are specified, open the remote control server
             if (ControlInPort != null && ControlOutPort != null)
             {
-                Control = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, (int)ControlOutPort);
+                try
+                {
+                    // We need to get the local IP of the network interface we're using, to be able to access packets
+                    // from the Internet. IPAddress.Loopback will only accept packets from the local network.
+                    foreach (NetworkInterface Interface in NetworkInterface.GetAllNetworkInterfaces())
+                    {
+                        if (Interface.NetworkInterfaceType == NetworkInterfaceType.Ethernet || Interface.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+                        {
+                            foreach (UnicastIPAddressInformation IP in Interface.GetIPProperties().UnicastAddresses)
+                            {
+                                if (IP.Address.AddressFamily == AddressFamily.InterNetwork)
+                                {
+                                    // We got the IP, we'll use it when creating the remote control OSC server
+                                    try { Control = new OscServer(Bespoke.Common.Net.TransportType.Udp, IP.Address, (int)ControlOutPort); }
+                                    catch
+                                    {
+                                        OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Failed to bind to local IP. Trying another one if available...", IP.Address);
+                                        continue; 
+                                    }
 
-                Control.BundleReceived += Bundle;
-                Control.MessageReceived += Message;
+                                    Control.BundleReceived += BundleR;
+                                    Control.MessageReceived += MessageR;
 
-                // Do not filter methods, accept all
-                Control.FilterRegisteredMethods = false;
+                                    // Do not filter methods, accept all
+                                    Control.FilterRegisteredMethods = false;
 
-                Control.Start();
+                                    Control.Start();
 
-                OSCServerL.PrintMessage(LogSystem.MsgType.Information, "VRChat OSC switch remote control is ready.", ControlOutPort, Control.IsRunning);
+                                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("VRChat OSC switch remote control is ready. Public IP is {0}, LAN IP is {1}.", GetPublicIPAddress(), IP.Address));
+
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (Control != null)
+                            if (Control.IsRunning) 
+                                break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OSCServerL.PrintMessage(LogSystem.MsgType.Error, "An error has occurred.", ex.ToString());
+                }
             }
 
             // Begin registering the addresses for every program
@@ -130,6 +214,22 @@ namespace VRChatOSCSwitch
             Host.Start();
 
             OSCServerL.PrintMessage(LogSystem.MsgType.Information, "VRChat OSC switch is ready.", OutPort, Host.IsRunning);
+        }
+
+        public void TerminateServer()
+        {
+            if (Host.IsRunning)
+            {
+                foreach (OSCProgram Program in Programs)
+                    Program.TerminateClient();
+
+                Host.Stop();
+                Host.ClearMethods();
+
+                Host.BundleReceived -= Bundle;
+                Host.MessageReceived -= Message;
+            }
+
         }
     }
 }

@@ -4,13 +4,15 @@ namespace VRChatOSCSwitch
 {
     static class Program
     {
-        static OSCServer Template;
+        static OSCServer? Host;
         static LogSystem MainLog = new LogSystem("MainPro");
         static string SettingsPath = Directory.GetCurrentDirectory() + "\\settings.json";
 
         [STAThread]
         static int Main(string[] Args)
         {
+            Reload:
+
             bool FileCheck = File.Exists(SettingsPath);
             if (!FileCheck)
             {
@@ -30,9 +32,9 @@ namespace VRChatOSCSwitch
 
             if (JSON != null)
             {
-                Template = JsonConvert.DeserializeObject<OSCServer>(JSON);
+                Host = JsonConvert.DeserializeObject<OSCServer>(JSON);
 
-                if (Template == null)
+                if (Host == null)
                 {
                     CreateJSON();
 
@@ -44,7 +46,7 @@ namespace VRChatOSCSwitch
                     return 0;
                 }
 
-                Template.PrepareServer();
+                Host.PrepareServer();
 
                 bool Quit = false;
                 while (!Quit)
@@ -61,6 +63,11 @@ namespace VRChatOSCSwitch
                             Console.ForegroundColor = ConsoleColor.Green;
                             MainLog.PrintMessage(LogSystem.MsgType.Information, "Quitting...");
                             break;
+
+                        case "reloadserver":
+                            Host.TerminateServer();
+                            Console.Clear();
+                            goto Reload;
 
                         // Test
                         case "vibe":
@@ -85,15 +92,15 @@ namespace VRChatOSCSwitch
 
         static void CreateJSON()
         {
-            Template = new OSCServer(9000, 9001, 8000, 8001,
+            Host = new OSCServer(9000, 9001, 8000, 8001, true,
                 new OSCProgram[1] {
-                    new OSCProgram("TargetAppName", null, null, true, 10000, 10001, 9000, "C:\\TargetApp.exe", "--osc=$InPort$:127.0.0.1:$OutPort$",
+                    new OSCProgram("TargetAppName", true, 10000, 10001, 9000, "C:\\TargetApp.exe", "--osc=$InPort$:127.0.0.1:$OutPort$",
                     new OSCAddress[2] {
                         new OSCAddress("/avatar/parameters", new string[2] { "param1", "param2" } ),
                         new OSCAddress("/something/else", new string[2] { "cpu", "ram" } )}) }
                 );
 
-            File.WriteAllText(SettingsPath, JsonConvert.SerializeObject(Template, Formatting.Indented));
+            File.WriteAllText(SettingsPath, JsonConvert.SerializeObject(Host, Formatting.Indented));
         }
     }
 }

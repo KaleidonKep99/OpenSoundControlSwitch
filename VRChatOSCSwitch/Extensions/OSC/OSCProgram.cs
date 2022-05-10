@@ -27,14 +27,6 @@ namespace VRChatOSCSwitch
         [JsonProperty("FwdOutPort")]
         public int OutPort { get; set; }
 
-        // Do not use for now
-        [JsonProperty("SourceIP")]
-        public string? SourceIP { get; set; }
-
-        // Do not use for now
-        [JsonProperty("TargetIP")]
-        public string? TargetIP { get; set; }
-
         // If you want the console to be hosted by the switch app, set this to true.
         // If set to false, the switch will create another console window.
         [JsonProperty("SeparateConsole")]
@@ -63,11 +55,9 @@ namespace VRChatOSCSwitch
         public OSCProgram() { }
 
         // Used to create the example JSON
-        public OSCProgram(string N, string? SIP, string? TIP, bool SC, int I, int O, int SI, string EP, string CL, OSCAddress[] A)
+        public OSCProgram(string N, bool SC, int I, int O, int SI, string EP, string CL, OSCAddress[] A)
         {
             Name = N;
-            SourceIP = SIP;
-            TargetIP = TIP;
             SeparateConsole = SC;
             InPort = I;
             OutPort = O;
@@ -99,26 +89,12 @@ namespace VRChatOSCSwitch
         // This function prepares the forwarder for the OSC app
         public void PrepareClient()
         {
-            /*
-            
-            // Do not use for now.
-
-            IPAddress? SIP = null, TIP = null;
-
-            if (SourceIP != null)
-                SIP = IPAddress.Parse(SourceIP);
-
-            if (TargetIP != null)
-                TIP = IPAddress.Parse(TargetIP);
-
-            */
-
             OSCProgramL = new LogSystem(Name);
 
             // Create the forwarder server
-            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, /*SIP != null ? SIP : */ IPAddress.Loopback, InPort);
-            AppDestination = new IPEndPoint(/*SIP != null ? SIP : */ IPAddress.Loopback, OutPort);
-            SrvDestination = new IPEndPoint(/*TIP != null ? TIP : */ IPAddress.Loopback, ServerInPort);
+            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, InPort);
+            AppDestination = new IPEndPoint(IPAddress.Loopback, OutPort);
+            SrvDestination = new IPEndPoint(IPAddress.Loopback, ServerInPort);
 
             Host.BundleReceived += Bundle;
             Host.MessageReceived += Message;
@@ -164,6 +140,15 @@ namespace VRChatOSCSwitch
             Host.Start();
 
             OSCProgramL.PrintMessage(LogSystem.MsgType.Information, String.Format("OSC forwarder for {0} is ready.", Name), String.Format("Input: {0}", InPort), String.Format("Output: {0}", OutPort), Host.IsRunning);
+        }
+
+        public void TerminateClient()
+        {
+            Host.Stop();
+            Host.ClearMethods();
+
+            Host.BundleReceived -= Bundle;
+            Host.MessageReceived -= Message;
         }
     }
 }
