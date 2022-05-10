@@ -7,52 +7,8 @@ This is why I created this app, which will act as a "switch" between the OSC app
 This is how the program works:<br/>
 ![diagram](https://i.imgur.com/7Y0KDit.png)
 
-## Example JSON
-```json
-{
-  "InPort": 9000,
-  "OutPort": 9001,
-  "ControlInPort": 8000,
-  "ControlOutPort": 8001,
-  "OSCPrograms": [
-    {
-      "Name": "VRCFT",
-      "ExecutablePath": "F:\\VRChat Cache\\Tools\\VRCFaceTracking.exe",
-      "CommandLine": "--osc=$InPort$:127.0.0.1:$OutPort$",
-      "FwdInPort": 10000,
-      "FwdOutPort": 10001,
-      "SeparateConsole": true,
-      "Addresses": [
-        {
-          "Address": "/avatar/parameters",
-          "Parameters": [
-            "EyesX",
-            "EyesY",
-            "CombinedEyeLid*",
-            "LeftEye*",
-            "RightEye*",
-            "Jaw*",
-            "Mouth*",
-            "Cheek*",
-            "Smile*",
-            "Puff*",
-            "Tongue*"
-          ]
-        },
-        {
-          "Address": "/avatar",
-          "Parameters": [
-            "change"
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-You can make the program generate an example JSON automatically by running it once.
-
-## TBD
+## How to set up the program
+For more information, take a look at the wiki here: https://github.com/KaleidonKep99/VRChatOSCSwitch/wiki/VRChatOSCSwitch-guide
 
 ## Dependencies
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) by Netwonsoft.
