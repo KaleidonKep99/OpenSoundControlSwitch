@@ -118,20 +118,23 @@ namespace VRChatOSCSwitch
                     {
                         object? Sas = null;
 
-                        switch (Type.GetTypeCode(FTarget.VarType))
+                        switch (FTarget.VarType)
                         {
-                            case TypeCode.Int16:
-                            case TypeCode.Int32:
-                            case TypeCode.Int64:
+                            case "int":
                                 int v = FTarget.MaxValue != null ? (int)FTarget.MaxValue : 100;
                                 Sas = (int)MFuncs.FtoI((float)Data[0], v);
                                 break;
-                            case TypeCode.Double:
-                            case TypeCode.Decimal:
+                            case "float":
                                 Sas = (float)Data[0];
                                 break;
-                            case TypeCode.String:
+                            case "bool":
+                                Sas = (bool)Data[0];
+                                break;
+                            case "string":
                                 Sas = (string)Data[0];
+                                break;
+                            default:
+                                Sas = Data[0];
                                 break;
                         }
 

@@ -42,12 +42,12 @@ namespace VRChatOSCSwitch
     public partial class OSCAddressHTTPItem
     {
         // The address (e.g. /avatar/parameters/param)
-        [JsonProperty("Constant")]
+        [JsonProperty("VarName")]
         public string VarName { get; }
 
         // The variable type
         [JsonProperty("VarType")]
-        public Type VarType { get; }
+        public string VarType { get; }
 
         // The address (e.g. /avatar/parameters/param)
         [JsonProperty("Constant")]
@@ -76,48 +76,28 @@ namespace VRChatOSCSwitch
                 {
                     case float f:
                     case double d:
-                        VarType = typeof(float);
+                        VarType = "float";
                         break;
                     case int i:
                     case long l:
-                        VarType = typeof(int);
+                        VarType = "int";
                         break;
                     case char c:
                     case string s:
-                        VarType = typeof(string);
+                        VarType = "string";
                         break;
                     case bool b:
-                        VarType = typeof(bool);
+                        VarType = "bool";
                         break;
                     default:
-                        VarType = typeof(object);
+                        VarType = "object";
                         break;
                 }
             }
-            else
-            {
-                Constant = false;
+            else Constant = false;
 
-                switch (VT)
-                {
-                    case "float":
-                        VarType = typeof(float);
-                        break;
-                    case "int":
-                        VarType = typeof(int);
-                        break;
-                    case "string":
-                        VarType = typeof(string);
-                        break;
-                    case "boolean":
-                        VarType = typeof(bool);
-                        break;
-                    default:
-                        VarType = typeof(object);
-                        break;
-                }
-            }
-
+            VarName = VN;
+            VarType = VT;
             MinValue = MiV;
             MaxValue = MaV;
         }
