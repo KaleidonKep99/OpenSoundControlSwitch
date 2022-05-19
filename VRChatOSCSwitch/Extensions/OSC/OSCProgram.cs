@@ -51,9 +51,6 @@ namespace VRChatOSCSwitch
         [JsonIgnore]
         public IPEndPoint SrvDestination { get; set; }
 
-        // Unused
-        public OSCProgram() { }
-
         // Used to create the example JSON
         public OSCProgram(string N, bool SC, int I, int O, int SI, string EP, string CL, OSCAddress[] A)
         {

@@ -75,6 +75,10 @@ namespace VRChatOSCSwitch
                             MainLog.PrintMessage(LogSystem.MsgType.Information, Msgs[Rnd.Next(0, Msgs.Length - 1)]);
                             break;
 
+                        case "debug":
+                            MainLog.PrintMessage(LogSystem.MsgType.Information, JsonConvert.SerializeObject(Host, Formatting.Indented));
+                            break;
+
                         // Test
                         case "vibe":
                         /*
@@ -105,9 +109,9 @@ namespace VRChatOSCSwitch
                         new OSCAddress("/avatar/parameters", new string[2] { "param1", "param2" } ),
                         new OSCAddress("/something/else", new string[2] { "cpu", "ram" } )}) },
                     new OSCAddressHTTP[1] { 
-                        new OSCAddressHTTP("http://sas:420/hitme", 
+                        new OSCAddressHTTP("http://sas:420/hitme", "/avatar/parameters/sendthis",
                             new OSCAddressHTTPItem[2] {
-                                new OSCAddressHTTPItem("constsos", "int", "100", 0, 10),
+                                new OSCAddressHTTPItem("constsos", "int", 100, 0, 10),
                                 new OSCAddressHTTPItem("oscsas", "float", null, 2, 5)
                             })
                     }

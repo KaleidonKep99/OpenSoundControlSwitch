@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace VRChatOSCSwitch
 {
@@ -53,7 +54,17 @@ namespace VRChatOSCSwitch
                 MsgC += " (Params: ";
 
                 for (int i = 0; i < Values.Length; i++)
-                    MsgC += String.Format("{0}{1}", Values[i], (i == Values.Length - 1) ? null : ", ");
+                {
+                    switch (Values[i])
+                    {
+                        case Exception:
+                            MsgC += String.Format("{0}, L{1}{2}", ((Exception)Values[i]).Message, new StackTrace((Exception)Values[i], true).GetFrame(0).GetFileLineNumber(), (i == Values.Length - 1) ? null : ", ");
+                            break;
+                        default:
+                            MsgC += String.Format("{0}{1}", Values[i], (i == Values.Length - 1) ? null : ", ");
+                            break;
+                    }
+                }
 
                 MsgC += ")";
             }

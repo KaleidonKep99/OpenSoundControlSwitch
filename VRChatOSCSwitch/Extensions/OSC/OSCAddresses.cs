@@ -12,9 +12,6 @@ namespace VRChatOSCSwitch
         [JsonProperty("Parameters")]
         public string[] Parameters { get; set; }
 
-        // Unused
-        public OSCAddress() { }
-
         // Used to create the example JSON
         public OSCAddress(string A, string[] P)
         {
@@ -29,12 +26,17 @@ namespace VRChatOSCSwitch
         [JsonProperty("Address")]
         public string Address { get; set; }
 
+        // The address (e.g. /avatar/parameters/param)
+        [JsonProperty("TargetAddress")]
+        public string TargetAddress { get; set; }
+
         public OSCAddressHTTPItem[] Vars { get; set; }
 
         // Used to create the example JSON
-        public OSCAddressHTTP(string A, OSCAddressHTTPItem[] Va)
+        public OSCAddressHTTP(string A, string TA, OSCAddressHTTPItem[] Va)
         {
             Address = A;
+            TargetAddress = TA;
             Vars = Va;
         }
     }
@@ -43,33 +45,34 @@ namespace VRChatOSCSwitch
     {
         // The address (e.g. /avatar/parameters/param)
         [JsonProperty("VarName")]
-        public string VarName { get; }
+        public string VarName { get; set; }
 
         // The variable type
         [JsonProperty("VarType")]
-        public string VarType { get; }
-
-        // The address (e.g. /avatar/parameters/param)
-        [JsonProperty("Constant")]
-        public bool Constant { get; }
+        public string VarType { get; set; }
 
         // The address (e.g. /avatar/parameters/param)
         [JsonProperty("Value")]
-        public object? Value { get; }
+        public object? Value { get; set; }
 
         // The minimum for the value (if required)
         [JsonProperty("MinValue")]
-        public object? MinValue { get; }
+        public object? MinValue { get; set; }
 
         // The maximum for the value
         [JsonProperty("MaxValue")]
-        public object? MaxValue { get; }
+        public object? MaxValue { get; set; }
+
+        [JsonProperty("Constant")]
+        public bool Constant { get; set; } = false;
+
+        [JsonIgnore]
+        public object? PrevValue { get; set; } = null;
 
         public OSCAddressHTTPItem(string VN, string VT, object? Const, object? MiV, object? MaV)
         {
             if (Const != null)
             {
-                Constant = true;
                 Value = Const;
 
                 switch (Const)
@@ -93,8 +96,9 @@ namespace VRChatOSCSwitch
                         VarType = "object";
                         break;
                 }
+
+                Constant = true;
             }
-            else Constant = false;
 
             VarName = VN;
             VarType = VT;
