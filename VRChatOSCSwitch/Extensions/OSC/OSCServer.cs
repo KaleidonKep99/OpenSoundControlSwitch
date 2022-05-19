@@ -32,16 +32,20 @@ namespace VRChatOSCSwitch
         [JsonProperty("OSCPrograms")]
         public OSCProgram[] Programs { get; set; }
 
+        // This contains all the programs that the switch will send packets to
+        public OSCAddressHTTP[] GETTargets { get; set; }
+
         // Internal functions used by the switch to do the forwarding and logging
         private OscServer Host, Control;
         private LogSystem OSCServerL = new LogSystem("OSCServerL");
         private OSCMsgHandler MsgHandler = new OSCMsgHandler();
+        private MathFuncs MFuncs = new MathFuncs();
 
         // Unused
         public OSCServer() {}
 
         // Used to create the example JSON
-        public OSCServer(int I, int O, int CI, int CO, bool HPIP, OSCProgram[] P)
+        public OSCServer(int I, int O, int CI, int CO, bool HPIP, OSCProgram[] P, OSCAddressHTTP[] AH)
         {
             InPort = I;
             OutPort = O;
@@ -49,6 +53,7 @@ namespace VRChatOSCSwitch
             ControlOutPort = CO;
             HidePublicIP = HPIP;
             Programs = P;
+            GETTargets = AH;
         }
 
         private string GetPublicIPAddress()
@@ -94,9 +99,54 @@ namespace VRChatOSCSwitch
                         {
                             OscMessage Msg = MsgHandler.BuildMsg(Target, OProgram.AppDestination, Data.ToArray());
                             Msg.Send(OProgram.AppDestination);
+                            return;
                         }
                     }
                 }
+            }
+
+            foreach (OSCAddressHTTP GETTarget in GETTargets)
+            {
+                int Who = 0;
+                string Target = GETTarget.Address;
+
+                foreach (OSCAddressHTTPItem FTarget in GETTarget.Vars)
+                {
+                    if (FTarget.Constant)
+                        Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.Value);
+                    else
+                    {
+                        object? Sas = null;
+
+                        switch (Type.GetTypeCode(FTarget.VarType))
+                        {
+                            case TypeCode.Int16:
+                            case TypeCode.Int32:
+                            case TypeCode.Int64:
+                                int v = FTarget.MaxValue != null ? (int)FTarget.MaxValue : 100;
+                                Sas = (int)MFuncs.FtoI((float)Data[0], v);
+                                break;
+                            case TypeCode.Double:
+                            case TypeCode.Decimal:
+                                Sas = (float)Data[0];
+                                break;
+                            case TypeCode.String:
+                                Sas = (string)Data[0];
+                                break;
+                        }
+
+                        Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, Sas);
+                    }
+
+                    Who++;
+                }
+
+                using (HttpClient Sos = new HttpClient())
+                { 
+                    HttpResponseMessage Pap = Sos.GetAsync(Target).Result;        
+                }
+
+                return;
             }
         }
 

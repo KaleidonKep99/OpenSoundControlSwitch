@@ -4,6 +4,7 @@ namespace VRChatOSCSwitch
 {
     static class Program
     {
+        static Random Rnd = new Random();
         static OSCServer? Host;
         static LogSystem MainLog = new LogSystem("MainPro");
         static string SettingsPath = Directory.GetCurrentDirectory() + "\\settings.json";
@@ -69,6 +70,11 @@ namespace VRChatOSCSwitch
                             Console.Clear();
                             goto Reload;
 
+                        case "motivateme":
+                            string[] Msgs = Properties.Resources.MotivationalMessages.Split('\n');
+                            MainLog.PrintMessage(LogSystem.MsgType.Information, Msgs[Rnd.Next(0, Msgs.Length - 1)]);
+                            break;
+
                         // Test
                         case "vibe":
                         /*
@@ -97,7 +103,14 @@ namespace VRChatOSCSwitch
                     new OSCProgram("TargetAppName", true, 10000, 10001, 9000, "C:\\TargetApp.exe", "--osc=$InPort$:127.0.0.1:$OutPort$",
                     new OSCAddress[2] {
                         new OSCAddress("/avatar/parameters", new string[2] { "param1", "param2" } ),
-                        new OSCAddress("/something/else", new string[2] { "cpu", "ram" } )}) }
+                        new OSCAddress("/something/else", new string[2] { "cpu", "ram" } )}) },
+                    new OSCAddressHTTP[1] { 
+                        new OSCAddressHTTP("http://sas:420/hitme", 
+                            new OSCAddressHTTPItem[2] {
+                                new OSCAddressHTTPItem("constsos", "int", "100", 0, 10),
+                                new OSCAddressHTTPItem("oscsas", "float", null, 2, 5)
+                            })
+                    }
                 );
 
             File.WriteAllText(SettingsPath, JsonConvert.SerializeObject(Host, Formatting.Indented));
