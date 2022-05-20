@@ -27,8 +27,8 @@ namespace VRChatOSCSwitch
                 return false;
 
             ConsoleMsg FinalMsg;
-            string MsgC = "";
-            ConsoleColor MsgCC = ConsoleColor.White;
+            ConsoleColor MsgCC;
+            string Msg = string.Empty;
 
             switch (Type)
             {
@@ -47,33 +47,36 @@ namespace VRChatOSCSwitch
                     break;
             }
 
-            MsgC += string.Format("({0}) {1} >> {2}", (Type == MsgType.Fatal) ? WhoAmI.ToUpper() : WhoAmI, DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss:fff"), Message);
+            Msg += string.Format("[{0}, {1}]", (Type == MsgType.Fatal) ? WhoAmI.ToUpper() : WhoAmI, DateTime.Now.ToString("yyyy-MM-dd h:mm:sst"));
+
+            Msg += string.Format(" >> {0}", Message);
 
             if (Values.Length > 0)
             {
-                MsgC += " (Params: ";
+                Msg += " (Params: ";
 
                 for (int i = 0; i < Values.Length; i++)
                 {
                     switch (Values[i])
                     {
                         case Exception:
-                            MsgC += String.Format("{0}, L{1}{2}", ((Exception)Values[i]).Message, new StackTrace((Exception)Values[i], true).GetFrame(0).GetFileLineNumber(), (i == Values.Length - 1) ? null : ", ");
+                            Msg += String.Format("{0}, L{1}{2}", ((Exception)Values[i]).Message, new StackTrace((Exception)Values[i], true).GetFrame(0).GetFileLineNumber(), (i == Values.Length - 1) ? null : ", ");
                             break;
                         default:
-                            MsgC += String.Format("{0}{1}", Values[i], (i == Values.Length - 1) ? null : ", ");
+                            Msg += String.Format("{0}{1}", Values[i], (i == Values.Length - 1) ? null : ", ");
                             break;
                     }
                 }
 
-                MsgC += ")";
+                Msg += ")";
             }
 
-            Console.ForegroundColor = ConsoleColor.White;
-            MsgC += "\n";
+            Msg += "\n";
 
-            FinalMsg = new ConsoleMsg(MsgC, MsgCC);
+            FinalMsg = new ConsoleMsg(Msg, MsgCC);
             AC.WriteLog(FinalMsg);
+
+            Console.ForegroundColor = ConsoleColor.White;
 
             return true;
         }
@@ -105,7 +108,6 @@ namespace VRChatOSCSwitch
                     {
                         Console.ForegroundColor = Item.Color;
                         Console.Write(Item.Msg);
-                        Console.ForegroundColor = ConsoleColor.White;
                     }
                 } });
 

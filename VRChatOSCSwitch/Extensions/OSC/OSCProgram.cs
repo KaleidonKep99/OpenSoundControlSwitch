@@ -8,35 +8,39 @@ namespace VRChatOSCSwitch
     public partial class OSCProgram
     {
         // The name of the program that you want the switch to forward to
-        [JsonProperty("Name")]
+        [JsonProperty]
         public string Name { get; set; }
 
         // The executable of the OSC program, optional
-        [JsonProperty("ExecutablePath")]
+        [JsonProperty]
         public string? ExecutablePath { get; set; }
 
         // The command line of the OSC program, might be required to change its default ports (e.g. with VRCFT)
-        [JsonProperty("CommandLine")]
+        [JsonProperty]
         public string? CommandLine { get; set; }
 
-        // This is the forwarded input port of VRChat, hosted by the switch. The switch will forward from this port to target OSC app's port.
-        [JsonProperty("FwdInPort")]
-        public int InPort { get; set; }
+        // This is the forwarded input port of the target OSC app, hosted by the switch
+        [JsonProperty]
+        public int FwdOutPort { get; set; }
 
         // This is the input port of the OSC app that is being forwarded
-        [JsonProperty("FwdOutPort")]
-        public int OutPort { get; set; }
+        [JsonProperty]
+        public int FwdInPort { get; set; }
 
         // If you want the console to be hosted by the switch app, set this to true.
         // If set to false, the switch will create another console window.
-        [JsonProperty("SeparateConsole")]
+        [JsonProperty]
         public bool? SeparateConsole { get; set; }
 
         // Used internally by the OSC switch
         [JsonIgnore]
-        public int ServerInPort { get; set; }
+        public int SOutPort { get; set; }
+        // ---------------------------------
+        [JsonIgnore]
+        public int SInPort { get; set; }
+        // Used internally by the OSC switch
 
-        [JsonProperty("Addresses")]
+        [JsonProperty]
         public OSCAddress[] Addresses { get; set; }
 
         private OscServer Host;
@@ -52,13 +56,12 @@ namespace VRChatOSCSwitch
         public IPEndPoint SrvDestination { get; set; }
 
         // Used to create the example JSON
-        public OSCProgram(string N, bool SC, int I, int O, int SI, string EP, string CL, OSCAddress[] A)
+        public OSCProgram(string N, bool SC, int FOP, int FIP, string EP, string CL, OSCAddress[] A)
         {
             Name = N;
             SeparateConsole = SC;
-            InPort = I;
-            OutPort = O;
-            ServerInPort = SI;
+            FwdOutPort = FOP;
+            FwdInPort = FIP;
             ExecutablePath = EP;
             CommandLine = CL;
             Addresses = A;
@@ -89,14 +92,14 @@ namespace VRChatOSCSwitch
             OSCProgramL = new LogSystem(Name);
 
             // Create the forwarder server
-            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, InPort);
-            AppDestination = new IPEndPoint(IPAddress.Loopback, OutPort);
-            SrvDestination = new IPEndPoint(IPAddress.Loopback, ServerInPort);
+            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, FwdOutPort);
+            AppDestination = new IPEndPoint(IPAddress.Loopback, FwdInPort);
+            SrvDestination = new IPEndPoint(IPAddress.Loopback, SInPort);
 
             Host.BundleReceived += Bundle;
             Host.MessageReceived += Message;
 
-            // If an executable is specified, run it
+/*            // If an executable is specified, run it
             if (!string.IsNullOrEmpty(ExecutablePath))
             {
                 // If there's a command line to be used, replace the two dummy values with the actual forward ports specified in the JSON
@@ -122,7 +125,7 @@ namespace VRChatOSCSwitch
                 // Oops?
                 if (ExecProc == null)
                     OSCProgramL.PrintMessage(LogSystem.MsgType.Warning, "The process failed to start. You might have to run it manually.", ExecutablePath, CommandLine);
-            }
+            }*/
 
             // Register the methods that the app is supposed to receive
             foreach (OSCAddress Address in Addresses)
@@ -136,7 +139,9 @@ namespace VRChatOSCSwitch
 
             Host.Start();
 
-            OSCProgramL.PrintMessage(LogSystem.MsgType.Information, String.Format("OSC forwarder for {0} is ready.", Name), String.Format("Input: {0}", InPort), String.Format("Output: {0}", OutPort), Host.IsRunning);
+            OSCProgramL.PrintMessage(
+                LogSystem.MsgType.Information, 
+                String.Format("OSC forwarder for {0} {1}. ({2} >>> {3}, {4} >>> {5})", Name, Host.IsRunning ? "is ready" : "failed to start", FwdOutPort, SOutPort, SInPort, FwdInPort));
         }
 
         public void TerminateClient()

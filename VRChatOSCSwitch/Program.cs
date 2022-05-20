@@ -18,93 +18,89 @@ namespace VRChatOSCSwitch
             if (!FileCheck)
             {
                 CreateJSON();
+                PrintGenericError(LogSystem.MsgType.Warning, "The settings.json file was missing. A template has been created.", SettingsPath);
+            }
+            else
+            {
+                string? JSON = null;
+                using (StreamReader SR = new StreamReader(SettingsPath))
+                    JSON = SR.ReadToEnd();
 
-                MainLog.PrintMessage(LogSystem.MsgType.Warning, "The settings.json file was missing. A template has been created.", SettingsPath);
-                MainLog.PrintMessage(LogSystem.MsgType.Warning, "Please fill it up with the programs you want the server to handle.");
-                MainLog.PrintMessage(LogSystem.MsgType.Information, "Press any key to close the program.");
+                if (JSON != null)
+                {
+                    Host = JsonConvert.DeserializeObject<OSCServer>(JSON);
 
-                Console.ReadKey();
-                return 0;
+                    if (Host == null)
+                    {
+                        CreateJSON();
+                        PrintGenericError(LogSystem.MsgType.Error, "The settings.json file is invalid and has been recreated.", SettingsPath);
+                    }
+                    else Host.PrepareServer();
+                }
             }
 
-            string? JSON = null;
-            using (StreamReader SR = new StreamReader(SettingsPath))
-                JSON = SR.ReadToEnd();
-
-            if (JSON != null)
+            bool Quit = false;
+            while (!Quit)
             {
-                Host = JsonConvert.DeserializeObject<OSCServer>(JSON);
+                if (Quit)
+                    break;
 
-                if (Host == null)
+                string[] CArgs = Console.ReadLine().ToLower().Split(' ');
+
+                switch (CArgs[0])
                 {
-                    CreateJSON();
+                    case "qs":
+                    case "quitswitch":
+                        Quit = true;
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        MainLog.PrintMessage(LogSystem.MsgType.Information, "Quitting...");
+                        break;
 
-                    MainLog.PrintMessage(LogSystem.MsgType.Error, "The settings.json file is invalid and has been recreated.", SettingsPath);
-                    MainLog.PrintMessage(LogSystem.MsgType.Warning, "Please fill it up with the programs you want the server to handle.");
-                    MainLog.PrintMessage(LogSystem.MsgType.Information, "Press any key to close the program.");
+                    case "rs":
+                    case "reloadswitch":
+                        Host.TerminateServer();
+                        Console.Clear();
+                        goto Reload;
 
-                    Console.ReadKey();
-                    return 0;
+                    case "mm":
+                    case "motivateme":
+                        string[] Msgs = Properties.Resources.MotivationalMessages.Split('\n');
+                        MainLog.PrintMessage(LogSystem.MsgType.Information, Msgs[Rnd.Next(0, Msgs.Length - 1)]);
+                        break;
+
+                    case "d":
+                    case "dbg":
+                    case "debug":
+                        MainLog.PrintMessage(LogSystem.MsgType.Information, String.Format("Requested debug info!\n\n{0}\n\n", JsonConvert.SerializeObject(Host, Formatting.Indented)));
+                        break;
+
+                    case "cls":
+                    case "clear":
+                        Console.Clear();
+                        break;
+
+                    default:
+                        break;
                 }
 
-                Host.PrepareServer();
-
-                bool Quit = false;
-                while (!Quit)
-                {
-                    if (Quit)
-                        break;
-
-                    string[] CArgs = Console.ReadLine().ToLower().Split(' ');
-
-                    switch (CArgs[0])
-                    {
-                        case "quitserver":
-                            Quit = true;
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            MainLog.PrintMessage(LogSystem.MsgType.Information, "Quitting...");
-                            break;
-
-                        case "reloadserver":
-                            Host.TerminateServer();
-                            Console.Clear();
-                            goto Reload;
-
-                        case "motivateme":
-                            string[] Msgs = Properties.Resources.MotivationalMessages.Split('\n');
-                            MainLog.PrintMessage(LogSystem.MsgType.Information, Msgs[Rnd.Next(0, Msgs.Length - 1)]);
-                            break;
-
-                        case "debug":
-                            MainLog.PrintMessage(LogSystem.MsgType.Information, JsonConvert.SerializeObject(Host, Formatting.Indented));
-                            break;
-
-                        // Test
-                        case "vibe":
-                        /*
-                        
-                        HttpClient Client = new HttpClient();
-                        var Response = Client.GetStringAsync("http://ip:port/command?v=0&t=id");
-                        break;
-                        
-                        */
-
-                        default:
-                            break;
-                    }
-
-                    Console.ResetColor();
-                };
-            }
+                Console.ResetColor();
+            };
 
             return 0;
+        }
+
+        static void PrintGenericError(LogSystem.MsgType Color, string Msg, string Param)
+        {
+            MainLog.PrintMessage(Color, Msg, Param);
+            MainLog.PrintMessage(LogSystem.MsgType.Warning, "Please fill it up with the programs you want the server to handle.");
+            MainLog.PrintMessage(LogSystem.MsgType.Information, "Type rs/reloadswitch to reload, once the configuration file is ready to be used.");
         }
 
         static void CreateJSON()
         {
             Host = new OSCServer(9000, 9001, 8000, 8001, true,
                 new OSCProgram[1] {
-                    new OSCProgram("TargetAppName", true, 10000, 10001, 9000, "C:\\TargetApp.exe", "--osc=$InPort$:127.0.0.1:$OutPort$",
+                    new OSCProgram("TargetAppName", true, 10000, 10001, "C:\\TargetApp.exe", "--osc=$InPort$:127.0.0.1:$OutPort$",
                     new OSCAddress[2] {
                         new OSCAddress("/avatar/parameters", new string[2] { "param1", "param2" } ),
                         new OSCAddress("/something/else", new string[2] { "cpu", "ram" } )}) },

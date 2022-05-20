@@ -1,6 +1,5 @@
 ﻿using Bespoke.Osc;
 using Newtonsoft.Json;
-using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -9,32 +8,32 @@ namespace VRChatOSCSwitch
 {
     public partial class OSCServer
     {
-        // This is the input port of VRChat (or the target OSC app)
-        [JsonProperty("InPort")]
-        public int InPort { get; set; }
-
-        // This is the input port of the OSC switch (this program)
-        [JsonProperty("OutPort")]
+        // This is the "output port of the switch program" / "input port the target OSC app"
+        [JsonProperty]
         public int OutPort { get; set; }
 
-        // This is the input port of the remote control program that is controlling the switch remotely
-        [JsonProperty("ControlInPort")]
-        public int? ControlInPort { get; set; }
+        // This is the input port of the OSC switch (this program)
+        [JsonProperty]
+        public int InPort { get; set; }
 
-        // This is the input port of the OSC switch, used by the remote control program
-        [JsonProperty("ControlOutPort")]
-        public int? ControlOutPort { get; set; }
+        // This is the port the switch program sends the data to in response to the remote control
+        [JsonProperty]
+        public int? RemoteControlOutPort { get; set; }
+
+        // This is where your remote control app should send events to
+        [JsonProperty]
+        public int? RemoteControlInPort { get; set; }
 
         // Don't show your public IP in the log when enabling the remote control
-        [JsonProperty("HidePublicIP")]
+        [JsonProperty]
         public bool? HidePublicIP { get; set; }
 
         // This contains all the programs that the switch will forwards the ports to
-        [JsonProperty("OSCPrograms")]
-        public OSCProgram[] Programs { get; set; }
+        [JsonProperty]
+        public OSCProgram[] OSCPrograms { get; set; }
 
         // This contains all the programs that the switch will send packets to
-        public OSCAddressHTTP[] GETTargets { get; set; }
+        public OSCAddressHTTP[]? GETTargets { get; set; } = null;
 
         // Internal functions used by the switch to do the forwarding and logging
         private OscServer Host, Control;
@@ -43,15 +42,15 @@ namespace VRChatOSCSwitch
         private MathFuncs MFuncs = new MathFuncs();
 
         // Used to create the example JSON
-        public OSCServer(int I, int O, int CI, int CO, bool HPIP, OSCProgram[] P, OSCAddressHTTP[] AH)
+        public OSCServer(int OP, int IP, int RCOP, int RCIP, bool HPIP, OSCProgram[] OSCP, OSCAddressHTTP[] GETT)
         {
-            InPort = I;
-            OutPort = O;
-            ControlInPort = CI;
-            ControlOutPort = CO;
+            OutPort = OP;
+            InPort = IP;
+            RemoteControlOutPort = RCOP;
+            RemoteControlInPort = RCIP;
             HidePublicIP = HPIP;
-            Programs = P;
-            GETTargets = AH;
+            OSCPrograms = OSCP;
+            GETTargets = GETT;
         }
 
         private string GetPublicIPAddress()
@@ -86,8 +85,7 @@ namespace VRChatOSCSwitch
         // and if it matches, it forwards the packet to it
         public void AnalyzeData(object? sender, IPEndPoint Source, string Address, IList<object> Data, Type DataType)
         {
-
-            foreach (OSCProgram OProgram in Programs)
+            foreach (OSCProgram OProgram in OSCPrograms)
             {
                 foreach (OSCAddress OAddress in OProgram.Addresses)
                 {
@@ -104,96 +102,99 @@ namespace VRChatOSCSwitch
                 }
             }
 
-            foreach (OSCAddressHTTP GETTarget in GETTargets)
+            if (GETTargets != null)
             {
-                if (GETTarget.TargetAddress.Equals(Address))
+                foreach (OSCAddressHTTP GETTarget in GETTargets)
                 {
-                    int Who = 0;
-                    string Target = GETTarget.Address;
-
-                    foreach (OSCAddressHTTPItem FTarget in GETTarget.Vars)
+                    if (GETTarget.TargetAddress.Equals(Address))
                     {
-                        if (FTarget.Constant)
-                            Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.Value);
-                        else
+                        int Who = 0;
+                        string Target = GETTarget.Address;
+
+                        foreach (OSCAddressHTTPItem FTarget in GETTarget.Vars)
                         {
-                            try
+                            if (FTarget.Constant)
+                                Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.Value);
+                            else
                             {
-                                switch (FTarget.VarType)
+                                try
                                 {
-                                    case "int":
-                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(int))
-                                            FTarget.PrevValue = 0;
+                                    switch (FTarget.VarType)
+                                    {
+                                        case "int":
+                                            if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(int))
+                                                FTarget.PrevValue = 0;
 
-                                        long v = FTarget.MaxValue != null ? (long)FTarget.MaxValue : 100;
-                                        int i = (int)FTarget.PrevValue;
-                                        if (FTarget.PrevValue.Equals(i))
-                                            return;
+                                            long v = FTarget.MaxValue != null ? (long)FTarget.MaxValue : 100;
+                                            int i = (int)MFuncs.FtoI((float)Data[0], Convert.ToInt32(v));
+                                            if (FTarget.PrevValue.Equals(i))
+                                                return;
 
-                                        FTarget.PrevValue = (int)MFuncs.FtoI((float)Data[0], Convert.ToInt32(v));
+                                            FTarget.PrevValue = i;
 
-                                        break;
-                                    case "float":
-                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(float))
-                                            FTarget.PrevValue = 0.0f;
+                                            break;
+                                        case "float":
+                                            if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(float))
+                                                FTarget.PrevValue = 0.0f;
 
-                                        float f = (float)FTarget.PrevValue;
-                                        if (FTarget.PrevValue.Equals(f))
-                                            return;
+                                            float f = (float)Data[0];
+                                            if (FTarget.PrevValue.Equals(f))
+                                                return;
 
-                                        FTarget.PrevValue = (float)Data[0];
+                                            FTarget.PrevValue = f;
 
-                                        break;
-                                    case "bool":
-                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(bool))
-                                            FTarget.PrevValue = false;
+                                            break;
+                                        case "bool":
+                                            if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(bool))
+                                                FTarget.PrevValue = false;
 
-                                        bool b = (bool)FTarget.PrevValue;
-                                        if (FTarget.PrevValue.Equals(b))
-                                            return;
+                                            bool b = (bool)Data[0];
+                                            if (FTarget.PrevValue.Equals(b))
+                                                return;
 
-                                        FTarget.PrevValue = (bool)Data[0];
+                                            FTarget.PrevValue = b;
 
-                                        break;
-                                    case "string":
-                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(string))
-                                            FTarget.PrevValue = string.Empty;
+                                            break;
+                                        case "string":
+                                            if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(string))
+                                                FTarget.PrevValue = string.Empty;
 
-                                        string s = (string)FTarget.PrevValue;
-                                        if (FTarget.PrevValue.Equals(s))
-                                            return;
+                                            string s = (string)Data[0];
+                                            if (FTarget.PrevValue.Equals(s))
+                                                return;
 
-                                        FTarget.PrevValue = (string)Data[0];
+                                            FTarget.PrevValue = s;
 
-                                        break;
-                                    default:
-                                        FTarget.PrevValue = Data[0];
-                                        break;
+                                            break;
+                                        default:
+                                            FTarget.PrevValue = Data[0];
+                                            break;
+                                    }
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Oops?", ex);
+                                catch (Exception ex)
+                                {
+                                    OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Oops?", ex);
+                                }
+
+                                Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.PrevValue);
                             }
 
-                            Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.PrevValue);
+                            Who++;
                         }
 
-                        Who++;
-                    }
-
-                    try
-                    {
-                        using (HttpClient Sos = new HttpClient())
+                        try
                         {
-                            HttpResponseMessage Pap = Sos.GetAsync(Target).Result;
+                            using (HttpClient Sos = new HttpClient())
+                            {
+                                HttpResponseMessage Pap = Sos.GetAsync(Target).Result;
+                            }
                         }
+                        catch { }
+
+                        return;
                     }
-                    catch {}
 
-                    return;
                 }
-
             }
         }
 
@@ -228,17 +229,13 @@ namespace VRChatOSCSwitch
         // This function prepares the server
         public void PrepareServer()
         {
-            // Prepare each client
-            foreach (OSCProgram Program in Programs)
-                Program.PrepareClient();
-
             // Create the switch server
-            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, OutPort);
+            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, InPort);
             Host.BundleReceived += Bundle;
             Host.MessageReceived += Message;
 
             // If the control ports are specified, open the remote control server
-            if (ControlInPort != null && ControlOutPort != null)
+            if (RemoteControlInPort != null && RemoteControlOutPort != null)
             {
                 try
                 {
@@ -253,7 +250,7 @@ namespace VRChatOSCSwitch
                                 if (IP.Address.AddressFamily == AddressFamily.InterNetwork)
                                 {
                                     // We got the IP, we'll use it when creating the remote control OSC server
-                                    try { Control = new OscServer(Bespoke.Common.Net.TransportType.Udp, IP.Address, (int)ControlOutPort); }
+                                    try { Control = new OscServer(Bespoke.Common.Net.TransportType.Udp, IP.Address, (int)RemoteControlInPort); }
                                     catch
                                     {
                                         OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Failed to bind to local IP. Trying another one if available...", IP.Address);
@@ -268,7 +265,8 @@ namespace VRChatOSCSwitch
 
                                     Control.Start();
 
-                                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("VRChat OSC switch remote control is ready. Public IP is {0}, LAN IP is {1}.", GetPublicIPAddress(), IP.Address));
+                                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("VRChat OSC switch remote control is ready! Public IP is {0}, LAN IP is {1}.", GetPublicIPAddress(), IP.Address));
+                                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("Remote sending to {0} and receiving on {1}.", RemoteControlOutPort, RemoteControlInPort));
 
                                     break;
                                 }
@@ -287,9 +285,12 @@ namespace VRChatOSCSwitch
             }
 
             // Begin registering the addresses for every program
-            foreach (OSCProgram Program in Programs)
+            foreach (OSCProgram Program in OSCPrograms)
             {
-                Program.SrvDestination = new IPEndPoint(IPAddress.Loopback, InPort);
+                Program.SOutPort = OutPort;
+                Program.SInPort = InPort;
+                Program.SrvDestination = new IPEndPoint(IPAddress.Loopback, OutPort);
+
                 foreach (OSCAddress Address in Program.Addresses)
                 {
                     foreach (string Parameter in Address.Parameters)
@@ -299,31 +300,38 @@ namespace VRChatOSCSwitch
 
                         // Register it to the host
                         Host.RegisterMethod(Par);
-                        OSCServerL.PrintMessage(LogSystem.MsgType.Information, "Added parameter to VRChat OSC switch.", Par);
+                        OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("Bound \"{0}\" method to {1}.", Par, Program.Name));
                     }
                 }
+
+                Program.PrepareClient();
 
                 // In case the program is waiting for a dummy packet, send one
                 OscMessage Msg = MsgHandler.BuildMsg("/oscswitchheartbeat/", Program.SrvDestination, true);
                 Msg.Send(Program.SrvDestination);
             }
 
-            foreach (OSCAddressHTTP GETTarget in GETTargets)
+            if (GETTargets != null)
             {
-                Host.RegisterMethod(GETTarget.TargetAddress);
-                OSCServerL.PrintMessage(LogSystem.MsgType.Information, "Added parameter to VRChat OSC switch for HTTP GET requests.", GETTarget.TargetAddress, GETTarget.Address);
+                foreach (OSCAddressHTTP GETTarget in GETTargets)
+                {
+                    Host.RegisterMethod(GETTarget.TargetAddress);
+                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("Bound \"{0}\" method to {1}.", GETTarget.TargetAddress, GETTarget.Address));
+                }
             }
 
             Host.Start();
 
-            OSCServerL.PrintMessage(LogSystem.MsgType.Information, "VRChat OSC switch is ready.", OutPort, Host.IsRunning);
+            OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("VRChat OSC switch {0}. Sending to {1} and receiving on {2}.", Host.IsRunning ? "is ready" : "failed to start", OutPort, InPort));
         }
 
         public void TerminateServer()
         {
+            if (Host == null) return;
+
             if (Host.IsRunning)
             {
-                foreach (OSCProgram Program in Programs)
+                foreach (OSCProgram Program in OSCPrograms)
                     Program.TerminateClient();
 
                 Host.Stop();
