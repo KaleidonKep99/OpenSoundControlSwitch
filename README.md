@@ -12,5 +12,6 @@ This is how the program works:<br/>
 For more information, take a look at the wiki here: https://github.com/KaleidonKep99/VRChatOSCSwitch/wiki/VRChatOSCSwitch-guide
 
 ## Dependencies
+- [Costura.Fody](https://github.com/Fody/Costura) by Fody.
 - [Newtonsoft.Json](https://www.newtonsoft.com/json) by Netwonsoft.
 - [Bespoke.Osc](https://opensoundcontrol.stanford.edu/implementations/Bespoke-OSC.html) by matt from Standford University.

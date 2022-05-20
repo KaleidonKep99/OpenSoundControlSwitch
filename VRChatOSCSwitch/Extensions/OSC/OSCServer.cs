@@ -182,14 +182,7 @@ namespace VRChatOSCSwitch
                             Who++;
                         }
 
-                        try
-                        {
-                            using (HttpClient Sos = new HttpClient())
-                            {
-                                HttpResponseMessage Pap = Sos.GetAsync(Target).Result;
-                            }
-                        }
-                        catch { }
+                        try { using (HttpClient Sos = new HttpClient()) { HttpResponseMessage Pap = Sos.GetAsync(Target).Result; } } catch { }
 
                         return;
                     }
