@@ -97,19 +97,20 @@ namespace VRChatOSCSwitch
     public class AsyncConsole
     {
         private BlockingCollection<ConsoleMsg> MsgQueue = new BlockingCollection<ConsoleMsg>();
-
         public AsyncConsole()
         {
-            var thread = new Thread(() => { 
-                while (true) {
+            var thread = new Thread(() => {
+                while (true)
+                {
                     ConsoleMsg Item = MsgQueue.Take();
-                    
+
                     if (Item != null)
                     {
                         Console.ForegroundColor = Item.Color;
                         Console.Write(Item.Msg);
                     }
-                } });
+                }
+            });
 
             thread.IsBackground = true;
             thread.Start();

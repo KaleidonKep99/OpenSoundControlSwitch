@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Net.Sockets;
 
 namespace VRChatOSCSwitch
 {
@@ -12,81 +13,91 @@ namespace VRChatOSCSwitch
         [STAThread]
         static int Main(string[] Args)
         {
-            Reload:
+            AppDomain.CurrentDomain.ProcessExit += new EventHandler(ProcExit);
 
-            bool FileCheck = File.Exists(SettingsPath);
-            if (!FileCheck)
+        Reload:
+            try
             {
-                CreateJSON();
-                PrintGenericError(LogSystem.MsgType.Warning, "The settings.json file was missing. A template has been created.", SettingsPath);
-            }
-            else
-            {
-                string? JSON = null;
-                using (StreamReader SR = new StreamReader(SettingsPath))
-                    JSON = SR.ReadToEnd();
-
-                if (JSON != null)
+                bool FileCheck = File.Exists(SettingsPath);
+                if (!FileCheck)
                 {
-                    Host = JsonConvert.DeserializeObject<OSCServer>(JSON);
+                    CreateJSON();
+                    PrintGenericError(LogSystem.MsgType.Warning, "The settings.json file was missing. A template has been created.", SettingsPath);
+                }
+                else
+                {
+                    string? JSON = null;
+                    using (StreamReader SR = new StreamReader(SettingsPath))
+                        JSON = SR.ReadToEnd();
 
-                    if (Host == null)
+                    if (JSON != null)
                     {
-                        CreateJSON();
-                        PrintGenericError(LogSystem.MsgType.Error, "The settings.json file is invalid and has been recreated.", SettingsPath);
+                        Host = JsonConvert.DeserializeObject<OSCServer>(JSON);
+
+                        if (Host == null)
+                        {
+                            CreateJSON();
+                            PrintGenericError(LogSystem.MsgType.Error, "The settings.json file is invalid and has been recreated.", SettingsPath);
+                        }
+                        else Host.PrepareServer();
                     }
-                    else Host.PrepareServer();
                 }
-            }
 
-            bool Quit = false;
-            while (!Quit)
-            {
-                if (Quit)
-                    break;
-
-                string[] CArgs = Console.ReadLine().ToLower().Split(' ');
-
-                switch (CArgs[0])
+                bool Quit = false;
+                while (!Quit)
                 {
-                    case "qs":
-                    case "quitswitch":
-                        Quit = true;
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        MainLog.PrintMessage(LogSystem.MsgType.Information, "Quitting...");
+                    if (Quit)
                         break;
 
-                    case "rs":
-                    case "reloadswitch":
-                        Host.TerminateServer();
-                        Console.Clear();
-                        goto Reload;
+                    string[] CArgs = Console.ReadLine().ToLower().Split(' ');
 
-                    case "mm":
-                    case "motivateme":
-                        string[] Msgs = Properties.Resources.MotivationalMessages.Split('\n');
-                        MainLog.PrintMessage(LogSystem.MsgType.Information, Msgs[Rnd.Next(0, Msgs.Length - 1)]);
-                        break;
+                    switch (CArgs[0])
+                    {
+                        case "qs":
+                        case "quitswitch":
+                            Quit = true;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            MainLog.PrintMessage(LogSystem.MsgType.Information, "Quitting...");
+                            break;
 
-                    case "d":
-                    case "dbg":
-                    case "debug":
-                        MainLog.PrintMessage(LogSystem.MsgType.Information, String.Format("Requested debug info!\n\n{0}\n\n", JsonConvert.SerializeObject(Host, Formatting.Indented)));
-                        break;
+                        case "rs":
+                        case "reloadswitch":
+                            Host.TerminateServer();
+                            Console.Clear();
+                            goto Reload;
 
-                    case "cls":
-                    case "clear":
-                        Console.Clear();
-                        break;
+                        case "mm":
+                        case "motivateme":
+                            string[] Msgs = Properties.Resources.MotivationalMessages.Split('\n');
+                            MainLog.PrintMessage(LogSystem.MsgType.Information, Msgs[Rnd.Next(0, Msgs.Length - 1)]);
+                            break;
 
-                    default:
-                        break;
-                }
+                        case "d":
+                        case "dbg":
+                        case "debug":
+                            MainLog.PrintMessage(LogSystem.MsgType.Information, String.Format("Requested debug info!\n\n{0}\n\n", JsonConvert.SerializeObject(Host, Formatting.Indented)));
+                            break;
 
-                Console.ResetColor();
-            };
+                        case "cls":
+                        case "clear":
+                            Console.Clear();
+                            break;
 
-            return 0;
+                        default:
+                            break;
+                    }
+
+                    Console.ResetColor();
+                };
+
+                return 0;
+            }
+            catch (SocketException ex)
+            {
+                MainLog.PrintMessage(LogSystem.MsgType.Error, "Something went wrong! Press a key to restart the program runtime.", ex);
+                Console.ReadKey();
+                goto Reload;
+            }
         }
 
         static void PrintGenericError(LogSystem.MsgType Color, string Msg, string Param)
@@ -98,22 +109,30 @@ namespace VRChatOSCSwitch
 
         static void CreateJSON()
         {
-            Host = new OSCServer(9000, 9001, 8000, 8001, true,
+            Host = new OSCServer(9000, 9001, 8000, "192.168.1.128 8001", true, false,
                 new OSCProgram[1] {
-                    new OSCProgram("TargetAppName", true, 10000, 10001, "C:\\TargetApp.exe", "--osc=$InPort$:127.0.0.1:$OutPort$",
+                    new OSCProgram("OSCClient", true, 10000, 10001, "C:\\OSCClient.exe", "--osc=$OutPort$:127.0.0.1:$InPort$",
                     new OSCAddress[2] {
                         new OSCAddress("/avatar/parameters", new string[2] { "param1", "param2" } ),
                         new OSCAddress("/something/else", new string[2] { "cpu", "ram" } )}) },
                     new OSCAddressHTTP[1] { 
-                        new OSCAddressHTTP("http://sas:420/hitme", "/avatar/parameters/sendthis",
+                        new OSCAddressHTTP("http://testwebsite.com/getme", "/avatar/parameters/sendthis",
                             new OSCAddressHTTPItem[2] {
-                                new OSCAddressHTTPItem("constsos", "int", 100, 0, 10),
-                                new OSCAddressHTTPItem("oscsas", "float", null, 2, 5)
+                                new OSCAddressHTTPItem("constant", "string", "thisisconstant", null, null),
+                                new OSCAddressHTTPItem("variable", "int", null, 0, 10)
                             })
                     }
                 );
 
             File.WriteAllText(SettingsPath, JsonConvert.SerializeObject(Host, Formatting.Indented));
+        }
+
+        static void ProcExit(object sender, EventArgs e)
+        {
+            MainLog.PrintMessage(LogSystem.MsgType.Warning, "Terminating...");
+
+            if (Host != null)
+                Host.TerminateServer();
         }
     }
 }
