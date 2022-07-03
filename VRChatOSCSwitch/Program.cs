@@ -47,9 +47,12 @@ namespace VRChatOSCSwitch
                 while (!Quit)
                 {
                     if (Quit)
-                        break;
+                        return 0;
 
-                    string[] CArgs = Console.ReadLine().ToLower().Split(' ');
+                    string[] CArgs;
+
+                    try { CArgs = Console.ReadLine().ToLower().Split(' '); }
+                    catch { CArgs = new string[] { "" }; }
 
                     switch (CArgs[0])
                     {

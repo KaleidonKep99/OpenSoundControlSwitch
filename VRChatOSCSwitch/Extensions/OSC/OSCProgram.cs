@@ -19,6 +19,10 @@ namespace VRChatOSCSwitch
         [JsonProperty]
         public string? CommandLine { get; set; }
 
+        // Other programs that must be running because they're required by the OSC program (e.g. with VRCFT)
+        [JsonProperty]
+        public string[]? ProgramDependencies { get; set; }
+
         // This is the forwarded input port of the target OSC app, hosted by the switch
         [JsonProperty]
         public int ProgramInPort { get; set; }
@@ -47,6 +51,7 @@ namespace VRChatOSCSwitch
         private LogSystem OSCProgramL;
         private OSCMsgHandler MsgHandler = new OSCMsgHandler();
         private Process? ExecProc = null;
+        private Process[]? DependenciesProc = null;
 
         // Used by the OSC switch to forward the packets to the OSC app (e.g. VRCFT)
         [JsonIgnore]
@@ -94,15 +99,42 @@ namespace VRChatOSCSwitch
         // This function prepares the forwarder for the OSC app
         public void PrepareClient()
         {
+            ProcessStartInfo Exec;
             OSCProgramL = new LogSystem(Name);
 
             // Create the forwarder server
-            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, ProgramOutPort);
+            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, ProgramOutPort, false);
             AppDestination = new IPEndPoint(IPAddress.Loopback, ProgramInPort);
             SrvDestination = new IPEndPoint(IPAddress.Loopback, SOutPort);
 
             Host.BundleReceived += Bundle;
             Host.MessageReceived += Message;
+
+            // If dependencies are specified, run them
+            //
+            // What's the deal with this piece of code? Shouldn't the apps do it themselves?
+            // Well yes and technically... no
+            // Apps such as VRCFT don't close the SRanipal program, even though THEY'RE SUPPOSED TO.
+            // So I just handle everything myself from here. Hehe!
+            if (ProgramDependencies != null)
+            {
+                DependenciesProc = new Process[ProgramDependencies.Length];
+                for (int C = 0; C < ProgramDependencies.Length; C++)
+                {
+                    // Prepare the PSI
+                    Exec = new ProcessStartInfo();
+                    Exec.FileName = ProgramDependencies[C];
+                    Exec.UseShellExecute = true;
+
+                    // Execute it
+                    try { DependenciesProc[C] = Process.Start(Exec); }
+                    catch { DependenciesProc[C] = null; }
+
+                    // Oops?
+                    if (DependenciesProc[C] == null)
+                        OSCProgramL.PrintMessage(LogSystem.MsgType.Warning, "The process failed to start. You might have to run it manually.", ProgramDependencies[C]);
+                }
+            }
 
             // If an executable is specified, run it
             if (!string.IsNullOrEmpty(ExecutablePath))
@@ -115,7 +147,7 @@ namespace VRChatOSCSwitch
                     CommandLine = "";
 
                 // Prepare the PSI
-                ProcessStartInfo Exec = new ProcessStartInfo();
+                Exec = new ProcessStartInfo();
                 Exec.Arguments = CommandLine;
                 Exec.FileName = ExecutablePath;
 
@@ -152,6 +184,11 @@ namespace VRChatOSCSwitch
         {
             if (ExecProc != null)
                 ExecProc.Kill();
+
+            if (DependenciesProc != null)
+                foreach (Process Proc in DependenciesProc)
+                    if (Proc != null)
+                        Proc.Kill();
 
             Host.Stop();
             Host.ClearMethods();

@@ -99,16 +99,27 @@ namespace VRChatOSCSwitch
 
                 foreach (OSCProgram OProgram in OSCPrograms)
                 {
-                    foreach (OSCAddress OAddress in OProgram.Addresses)
+                    if (Source.Address != OProgram.AppDestination.Address && Source.Port != OProgram.AppDestination.Port)
                     {
-                        foreach (string Param in OAddress.Parameters)
+                        foreach (OSCAddress OAddress in OProgram.Addresses)
                         {
-                            String Target = String.Format("{0}/{1}", OAddress.Address, Param);
-                            if (Target.Equals(Address))
+                            foreach (string Param in OAddress.Parameters)
                             {
-                                OscMessage Msg = MsgHandler.BuildMsg(Target, OProgram.AppDestination, Data.ToArray());
-                                Msg.Send(OProgram.AppDestination);
-                                goto NextProgram;
+                                String Target = String.Format("{0}/{1}", OAddress.Address, Param);
+
+                                if (DebugMessages != null && DebugMessages == true)
+                                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("Target will be {0}", Target));
+
+                                if (Target.Equals(Address))
+                                {
+                                    OscMessage Msg = MsgHandler.BuildMsg(Target, OProgram.AppDestination, Data.ToArray());
+                                    Msg.Send(OProgram.AppDestination);
+
+                                    if (DebugMessages != null && DebugMessages == true)
+                                        OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("Sent from {0} and relayed to {1}", Source, OProgram.AppDestination));
+
+                                    goto NextProgram;
+                                }
                             }
                         }
                     }
@@ -254,7 +265,7 @@ namespace VRChatOSCSwitch
         public void PrepareServer()
         {
             // Create the switch server
-            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, SwitchInPort);
+            Host = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, SwitchInPort, false);
             Host.BundleReceived += Bundle;
             Host.MessageReceived += Message;
 
@@ -275,7 +286,7 @@ namespace VRChatOSCSwitch
                 catch { BounceIP = null; }
 
                 // Create the local input server
-                ControlL = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, (int)RemoteControlInPort);
+                ControlL = new OscServer(Bespoke.Common.Net.TransportType.Udp, IPAddress.Loopback, (int)RemoteControlInPort, false);
                 ControlL.BundleReceived += BundleR;
                 ControlL.MessageReceived += MessageR;
                 ControlL.FilterRegisteredMethods = false;
@@ -294,7 +305,7 @@ namespace VRChatOSCSwitch
                                 if (IP.Address.AddressFamily == AddressFamily.InterNetwork)
                                 {
                                     // We got the IP, we'll use it when creating the remote control OSC server
-                                    try { ControlR = new OscServer(Bespoke.Common.Net.TransportType.Udp, IP.Address, (int)RemoteControlInPort); }
+                                    try { ControlR = new OscServer(Bespoke.Common.Net.TransportType.Udp, IP.Address, (int)RemoteControlInPort, false); }
                                     catch
                                     {
                                         OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Failed to bind to local IP. Trying another one if available...", IP.Address);
