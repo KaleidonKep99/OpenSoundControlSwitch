@@ -49,7 +49,7 @@ namespace VRChatOSCSwitch
 
         private OscServer Host;
         private LogSystem OSCProgramL;
-        private OSCMsgHandler MsgHandler = new OSCMsgHandler();
+        private OSCMsgHandler MsgHandler;
         private Process? ExecProc = null;
         private Process[]? DependenciesProc = null;
 
@@ -71,6 +71,7 @@ namespace VRChatOSCSwitch
             ExecutablePath = EP;
             CommandLine = CL;
             Addresses = A;
+            MsgHandler = new OSCMsgHandler();
         }
 
         // Forward every packet to the target OSC app

@@ -42,7 +42,7 @@ namespace VRChatOSCSwitch
         // Internal functions used by the switch to do the forwarding and logging
         private OscServer Host, ControlR, ControlL;
         private LogSystem OSCServerL = new LogSystem("OSCServerL");
-        private OSCMsgHandler MsgHandler = new OSCMsgHandler();
+        private OSCMsgHandler MsgHandler;
         private MathFuncs MFuncs = new MathFuncs();
         private AsyncHTTPGET GETThingy = new AsyncHTTPGET();
         private IPEndPoint? BounceIP = null;
@@ -58,6 +58,7 @@ namespace VRChatOSCSwitch
             DebugMessages = DM;
             OSCPrograms = OSCP;
             GETTargets = GETT;
+            MsgHandler = new OSCMsgHandler();
         }
 
         private string GetPublicIPAddress()
@@ -374,6 +375,7 @@ namespace VRChatOSCSwitch
                 }
             }
 
+            MsgHandler = new OSCMsgHandler();
             Host.Start();
 
             OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("VRChat OSC switch {0}. Listening on {1} and forwarding to {2}.", Host.IsRunning ? "is ready" : "failed to start", SwitchInPort, SwitchOutPort));

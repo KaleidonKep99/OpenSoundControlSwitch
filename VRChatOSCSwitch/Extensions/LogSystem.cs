@@ -1,5 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.IO.Pipes;
+using System.Text;
 
 namespace VRChatOSCSwitch
 {
@@ -14,11 +16,12 @@ namespace VRChatOSCSwitch
         }
 
         private string WhoAmI = "Undefined";
-        private AsyncConsole AC = new AsyncConsole();
+        private AsyncConsole AC;
 
         public LogSystem(string Source)
         {
             WhoAmI = Source;
+            AC = new AsyncConsole(WhoAmI);
         }
 
         public bool PrintMessage(MsgType? Type, string Message, params object[] Values)
@@ -101,8 +104,14 @@ namespace VRChatOSCSwitch
     public class AsyncConsole
     {
         private BlockingCollection<ConsoleMsg> MsgQueue = new BlockingCollection<ConsoleMsg>();
-        public AsyncConsole()
+
+        public AsyncConsole(string Source)
         {
+
+            // NamedPipeServerStream PipeSrv = new NamedPipeServerStream(String.Format("VRCOSCS{0}", Source), PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            // PipeString PipeSt = new PipeString(PipeSrv);
+            // new Thread(() => { if (PipeSrv != null) PipeSrv.WaitForConnection(); }).Start();
+
             var thread = new Thread(() => {
             YesLetsGo:
                 try
@@ -115,6 +124,9 @@ namespace VRChatOSCSwitch
                         {
                             Console.ForegroundColor = Item.Color;
                             Console.Write(Item.Msg);
+
+                            // if (PipeSrv.IsConnected)
+                            //     PipeSt.WriteToPipe(Item.Msg);
                         }
                     }
                 }
@@ -130,4 +142,43 @@ namespace VRChatOSCSwitch
             MsgQueue.Add(value);
         }
     }
+
+    /*
+    public class PipeString
+    {
+        private Stream IOStream;
+        private UnicodeEncoding UE;
+
+        public PipeString(Stream TheStream)
+        {
+            IOStream = TheStream;
+            UE = new UnicodeEncoding();
+        }
+
+        public string ReadFromPipe()
+        {
+            int len;
+            len = (IOStream.ReadByte() * 256) + IOStream.ReadByte();
+
+            byte[] InputBuf = new byte[len];
+            IOStream.Read(InputBuf, 0, len);
+
+            return UE.GetString(InputBuf);
+        }
+
+        public int WriteToPipe(string Output)
+        {
+            byte[] OutputBuf = UE.GetBytes(Output);
+            int len = OutputBuf.Length > UInt16.MaxValue ? UInt16.MaxValue : OutputBuf.Length;
+
+            IOStream.WriteByte((byte)(len / 256));
+            IOStream.WriteByte((byte)(len & 255));
+
+            IOStream.Write(OutputBuf, 0, len);
+            IOStream.Flush();
+
+            return OutputBuf.Length + 2;
+        }
+    }
+    */
 }
