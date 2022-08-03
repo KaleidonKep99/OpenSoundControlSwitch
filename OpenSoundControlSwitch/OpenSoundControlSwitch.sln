@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.1.32210.238
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VRChatOSCSwitch", "VRChatOSCSwitch.csproj", "{E42AFDF5-EBC1-4C14-B48B-E5C2D8551308}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenSoundControlSwitch", "OpenSoundControlSwitch.csproj", "{E42AFDF5-EBC1-4C14-B48B-E5C2D8551308}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

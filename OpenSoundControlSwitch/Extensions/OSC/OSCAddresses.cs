@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace VRChatOSCSwitch
+namespace OpenSoundControlSwitch
 {
     public partial class OSCAddress
     {

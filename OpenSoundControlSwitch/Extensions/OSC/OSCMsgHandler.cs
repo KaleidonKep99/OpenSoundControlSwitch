@@ -1,7 +1,7 @@
 ﻿using Bespoke.Osc;
 using System.Net;
 
-namespace VRChatOSCSwitch
+namespace OpenSoundControlSwitch
 {
     public partial class OSCMsgHandler
     {

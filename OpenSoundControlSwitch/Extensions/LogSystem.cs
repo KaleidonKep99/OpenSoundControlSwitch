@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 
-namespace VRChatOSCSwitch
+namespace OpenSoundControlSwitch
 {
     public class LogSystem
     {
