@@ -8,11 +8,11 @@
     <Version>0.1</Version>
     <Company>KaleidonKep99</Company>
     <Authors>KaleidonKep99</Authors>
-    <ApplicationIcon>Resources\VRChatOSCSwitch.ico</ApplicationIcon>
+    <ApplicationIcon>Resources\OpenSoundControlSwitch.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Resources\VRChatOSCSwitch.ico" />
+    <Content Include="Resources\OpenSoundControlSwitch.ico" />
   </ItemGroup>
 
   <ItemGroup>
