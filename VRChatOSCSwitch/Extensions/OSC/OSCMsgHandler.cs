@@ -81,26 +81,5 @@ namespace VRChatOSCSwitch
 
             return Message;
         }
-
-        public void SendMsg(string Target, IPEndPoint NetTarget, object? Value = null, bool? Silent = false)
-        {
-            OscMessage Message = BuildMsg(Target, NetTarget, Value);
-            Message.Send(NetTarget);
-
-            if (Silent == false)
-                OSCMsgHandlerL.PrintMessage(LogSystem.MsgType.Information, "OSC message sent.", Message.Address, NetTarget.Address.ToString(), NetTarget.Port.ToString());
-        }
-
-        public void SendBndl(IPEndPoint NetTarget, List<OscMessage>? MsgVector = null, bool? Silent = false)
-        {
-            OscBundle Bundle = new OscBundle(NetTarget);
-
-            foreach (OscMessage Msg in MsgVector)
-                Bundle.Append(Msg);
-
-            Bundle.Send(NetTarget);
-            if (Silent == false)
-                OSCMsgHandlerL.PrintMessage(LogSystem.MsgType.Information, "OSC bundle sent.", NetTarget.Address.ToString(), NetTarget.Port.ToString());
-        }
     }
 }

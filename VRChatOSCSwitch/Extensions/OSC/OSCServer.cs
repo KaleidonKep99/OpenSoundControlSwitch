@@ -91,12 +91,12 @@ namespace VRChatOSCSwitch
 
         // This function scans every packet received, and if it matches one of the programs,
         // it forwards the packet to it
-        public void AnalyzeData(object? sender, IPEndPoint Source, string Address, IList<object> Data)
+        public void AnalyzeData(object? sender, IPEndPoint Source, string Address, object Data)
         {
             try
             {
                 if (DebugMessages != null && DebugMessages == true) 
-                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, Address, Data[0]);
+                    OSCServerL.PrintMessage(LogSystem.MsgType.Information, Address, Data);
 
                 foreach (OSCProgram OProgram in OSCPrograms)
                 {
@@ -113,8 +113,16 @@ namespace VRChatOSCSwitch
 
                                 if (Target.Equals(Address))
                                 {
-                                    OscMessage Msg = MsgHandler.BuildMsg(Target, OProgram.AppDestination, Data.ToArray());
-                                    Msg.Send(OProgram.AppDestination);
+                                    switch (Data)
+                                    {
+                                        case OscBundle OSCB:
+                                            OSCB.Send(OProgram.AppDestination);
+                                            break;
+
+                                        case OscMessage OSCM:
+                                            OSCM.Send(OProgram.AppDestination);
+                                            break;
+                                    }
 
                                     if (DebugMessages != null && DebugMessages == true)
                                         OSCServerL.PrintMessage(LogSystem.MsgType.Information, String.Format("Sent from {0} and relayed to {1}", Source, OProgram.AppDestination));
@@ -128,102 +136,117 @@ namespace VRChatOSCSwitch
                     NextProgram:;
                 }
 
-                if (GETTargets != null)
+                switch (Data)
                 {
-                    foreach (OSCAddressHTTP GETTarget in GETTargets)
-                    {
-                        if (GETTarget.TargetAddress.Equals(Address))
-                        {
-                            int Who = 0;
-                            string Target = GETTarget.Address;
+                    case OscBundle OSCB:
+                        foreach (OscMessage Message in OSCB.Messages)
+                            AnalyzeData(sender, Source, Address, Message);
 
-                            foreach (OSCAddressHTTPItem FTarget in GETTarget.Vars)
+                        foreach (OscBundle Bundle in OSCB.Bundles)
+                            AnalyzeData(sender, Source, Address, Bundle);
+
+                        break;
+
+                    case OscMessage OSCM:
+                        if (GETTargets != null)
+                        {
+                            foreach (OSCAddressHTTP GETTarget in GETTargets)
                             {
-                                if (FTarget.Constant)
-                                    Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.Value);
-                                else
+                                if (GETTarget.TargetAddress.Equals(Address))
                                 {
+                                    int Who = 0;
+                                    string Target = GETTarget.Address;
+
+                                    foreach (OSCAddressHTTPItem FTarget in GETTarget.Vars)
+                                    {
+                                        if (FTarget.Constant)
+                                            Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.Value);
+                                        else
+                                        {
+                                            try
+                                            {
+                                                switch (FTarget.VarType)
+                                                {
+                                                    case "i":
+                                                    case "int":
+                                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(int))
+                                                            FTarget.PrevValue = 0;
+
+                                                        long v = FTarget.MaxValue != null ? (long)FTarget.MaxValue : 100;
+                                                        int i = (int)MFuncs.FtoI((float)OSCM.Data[0], Convert.ToInt32(v));
+                                                        if (FTarget.PrevValue.Equals(i))
+                                                            return;
+
+                                                        FTarget.PrevValue = i;
+
+                                                        break;
+                                                    case "f":
+                                                    case "float":
+                                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(float))
+                                                            FTarget.PrevValue = 0.0f;
+
+                                                        float f = (float)OSCM.Data[0];
+                                                        if (FTarget.PrevValue.Equals(f))
+                                                            return;
+
+                                                        FTarget.PrevValue = f;
+
+                                                        break;
+                                                    case "b":
+                                                    case "bool":
+                                                    case "boolean":
+                                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(bool))
+                                                            FTarget.PrevValue = false;
+
+                                                        bool b = (bool)OSCM.Data[0];
+                                                        if (FTarget.PrevValue.Equals(b))
+                                                            return;
+
+                                                        FTarget.PrevValue = b;
+
+                                                        break;
+                                                    case "s":
+                                                    case "string":
+                                                        if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(string))
+                                                            FTarget.PrevValue = string.Empty;
+
+                                                        string s = (string)OSCM.Data[0];
+                                                        if (FTarget.PrevValue.Equals(s))
+                                                            return;
+
+                                                        FTarget.PrevValue = s;
+
+                                                        break;
+                                                    default:
+                                                        FTarget.PrevValue = OSCM.Data[0];
+                                                        break;
+                                                }
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Oops?", ex);
+                                            }
+
+                                            Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.PrevValue);
+                                        }
+
+                                        Who++;
+                                    }
+
                                     try
                                     {
-                                        switch (FTarget.VarType)
-                                        {
-                                            case "i":
-                                            case "int":
-                                                if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(int))
-                                                    FTarget.PrevValue = 0;
-
-                                                long v = FTarget.MaxValue != null ? (long)FTarget.MaxValue : 100;
-                                                int i = (int)MFuncs.FtoI((float)Data[0], Convert.ToInt32(v));
-                                                if (FTarget.PrevValue.Equals(i))
-                                                    return;
-
-                                                FTarget.PrevValue = i;
-
-                                                break;
-                                            case "f":
-                                            case "float":
-                                                if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(float))
-                                                    FTarget.PrevValue = 0.0f;
-
-                                                float f = (float)Data[0];
-                                                if (FTarget.PrevValue.Equals(f))
-                                                    return;
-
-                                                FTarget.PrevValue = f;
-
-                                                break;
-                                            case "b":
-                                            case "bool":
-                                            case "boolean":
-                                                if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(bool))
-                                                    FTarget.PrevValue = false;
-
-                                                bool b = (bool)Data[0];
-                                                if (FTarget.PrevValue.Equals(b))
-                                                    return;
-
-                                                FTarget.PrevValue = b;
-
-                                                break;
-                                            case "s":
-                                            case "string":
-                                                if (FTarget.PrevValue == null || FTarget.PrevValue.GetType() != typeof(string))
-                                                    FTarget.PrevValue = string.Empty;
-
-                                                string s = (string)Data[0];
-                                                if (FTarget.PrevValue.Equals(s))
-                                                    return;
-
-                                                FTarget.PrevValue = s;
-
-                                                break;
-                                            default:
-                                                FTarget.PrevValue = Data[0];
-                                                break;
-                                        }
+                                        GETThingy.AddToQ(Target);
                                     }
-                                    catch (Exception ex)
-                                    {
-                                        OSCServerL.PrintMessage(LogSystem.MsgType.Error, "Oops?", ex);
-                                    }
+                                    catch { }
 
-                                    Target += String.Format("{0}{1}={2}", Who < 1 ? "?" : "&", FTarget.VarName, FTarget.PrevValue);
+                                    return;
                                 }
-
-                                Who++;
                             }
-
-                            try
-                            {
-                                GETThingy.AddToQ(Target);
-                            }
-                            catch { }
-
-                            return;
                         }
-                    }
+
+                        break;
                 }
-            }
+             }
             catch (Exception ex)
             {
                 OSCServerL.PrintMessage(LogSystem.MsgType.Error, "An error has occurred while forwarding one of the packets!", ex);
@@ -233,13 +256,13 @@ namespace VRChatOSCSwitch
         // Get the bundle and analyze it
         public void Bundle(object? sender, OscBundleReceivedEventArgs Var)
         {
-            AnalyzeData(sender, Var.Bundle.SourceEndPoint, Var.Bundle.Address, Var.Bundle.Data);
+            AnalyzeData(sender, Var.Bundle.SourceEndPoint, Var.Bundle.Address, Var.Bundle);
         }
 
         // Get the message and analyze it
         public void Message(object? sender, OscMessageReceivedEventArgs Var)
         {
-            AnalyzeData(sender, Var.Message.SourceEndPoint, Var.Message.Address, Var.Message.Data);
+            AnalyzeData(sender, Var.Message.SourceEndPoint, Var.Message.Address, Var.Message);
         }
 
         // --

@@ -75,12 +75,22 @@ namespace VRChatOSCSwitch
         }
 
         // Forward every packet to the target OSC app
-        public void AnalyzeData(object? sender, IPEndPoint Source, string Address, IList<object> Data, Type DataType)
+        public void AnalyzeData(object? sender, IPEndPoint Source, string Address, object Data)
         {
             try
             {
-                OscMessage? Msg = MsgHandler.BuildMsg(Address, SrvDestination, Data.ToArray());
-                if (Msg != null) Msg.Send(SrvDestination);
+                if (Data != null)
+                {
+                    switch (Data)
+                    {
+                        case OscMessage OSCM:
+                            OSCM.Send(SrvDestination);
+                            break;
+                        case OscBundle OSCB:
+                            OSCB.Send(SrvDestination);
+                            break;
+                    }
+                }
             }
             catch { }
         }
@@ -88,13 +98,13 @@ namespace VRChatOSCSwitch
         // Get the message and analyze it
         public void Bundle(object? sender, OscBundleReceivedEventArgs Var)
         {
-            AnalyzeData(sender, Var.Bundle.SourceEndPoint, Var.Bundle.Address, Var.Bundle.Data, Var.GetType());
+            AnalyzeData(sender, Var.Bundle.SourceEndPoint, Var.Bundle.Address, Var.Bundle);
         }
 
         // Get the message and analyze it
         public void Message(object? sender, OscMessageReceivedEventArgs Var)
         {
-            AnalyzeData(sender, Var.Message.SourceEndPoint, Var.Message.Address, Var.Message.Data, Var.GetType());
+            AnalyzeData(sender, Var.Message.SourceEndPoint, Var.Message.Address, Var.Message);
         }
 
         // This function prepares the forwarder for the OSC app
