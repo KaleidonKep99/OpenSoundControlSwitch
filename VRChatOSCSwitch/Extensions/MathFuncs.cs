@@ -1,4 +1,4 @@
-﻿namespace OpenSoundControlSwitch
+﻿namespace VRChatOSCSwitch
 {
     public class MathFuncs
     {

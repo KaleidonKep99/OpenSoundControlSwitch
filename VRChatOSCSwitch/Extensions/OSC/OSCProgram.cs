@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Net;
 
-namespace OpenSoundControlSwitch
+namespace VRChatOSCSwitch
 {
     public partial class OSCProgram
     {

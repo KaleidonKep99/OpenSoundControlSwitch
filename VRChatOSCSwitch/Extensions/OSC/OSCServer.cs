@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 
-namespace OpenSoundControlSwitch
+namespace VRChatOSCSwitch
 {
     public partial class OSCServer
     {   

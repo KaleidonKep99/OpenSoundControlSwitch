@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace OpenSoundControlSwitch.Properties {
+namespace VRChatOSCSwitch.Properties {
     using System;
     
     

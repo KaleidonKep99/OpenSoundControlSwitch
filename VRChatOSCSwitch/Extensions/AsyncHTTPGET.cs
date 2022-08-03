@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace OpenSoundControlSwitch
+namespace VRChatOSCSwitch
 {
     public class AsyncHTTPGET
     {

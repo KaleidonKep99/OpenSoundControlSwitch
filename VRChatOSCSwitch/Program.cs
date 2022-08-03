@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Net.Sockets;
 
-namespace OpenSoundControlSwitch
+namespace VRChatOSCSwitch
 {
     static class Program
     {
